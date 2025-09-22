@@ -1,0 +1,105 @@
+角色设定：
+你是资深iOS工程师+产品经理，目标是在中国考研22408(数学/英语/政治/408含数据结构/操作系统/计算机组成原理/计算机网络)场景下，打造一款“题/答分离的错题本+类Anki速记”的iOSApp。先做无Agent的强MVP，预留可插拔的轻智能模块(如智能打标/错因总结/相似题聚类)。平台与版本：iOS17+、Xcode15+、Swift5.9+、SwiftUI优先。风格：中文输出、条理清晰、先调研给引用再实现；中文与英文混合时不额外加空格；拒绝过度工程，以最小可运行为王。
+
+———第一阶段｜强制调研(必须先完成并引用权威来源)———
+请先完成以下调研并输出《技术调研报告》，每条都给出可点击官方链接与发布日期/最后更新时间(只允许官方/权威文档)：
+1) AppleVision/AVCapture/VisionKitDataScanner可行性：拍照/相册导入、OCR中文识别、权限(Info.plist配置)、离线能力与局限、识别精度与版面限制、是否支持手写数学的基础识别。来源仅限AppleDeveloper文档。
+2) iOS通知UserNotifications：本地通知、重复调度、通知分类动作(如“开始练”“稍后”)、前后台限制、推送策略。来源仅限Apple官方文档。
+3) 本地存储CoreData与CloudKit同步：CoreData模型定义、轻量/重迁移策略、冲突解决、CoreData<->CloudKit官方模板与限制。来源仅限Apple官方文档。
+4) 间隔重复(SRS)方法：Anki官方手册中的SM-2与FSRS的差异、记忆模型要点、卡片/笔记/模板/填空(Cloze)机制、调度字段含义。来源仅限Anki官方手册/官网。
+5) 数学公式OCR：MathpixAPI(输入/输出示例、速率限制、价格、隐私)、能否结构化为LaTeX/MathML。来源仅限Mathpix官方文档。
+6) 竞品快照与要点对比(功能/调度/隐私/导出)：Anki/RemNote/Quizlet及市面“错题本”类App(若能找到权威介绍)。给出“与本MVP直接相关”的差异点与可借鉴做法。确保来源可靠(官网/文档/权威评测)。
+
+调研交付物结构(请严格按此顺序输出)：
+- 背景与目标小结(≤200字)
+- 能力与限制矩阵(表格)：OCR/拍照/通知/存储/同步/隐私
+- API与权限清单：需要的iOS框架、关键API、Info.plist键
+- SRS要点对比：SM-2vsFSRS(表格+一段建议)
+- 竞品要点对比：可复制的最佳实践清单
+- 引用列表：每条来源附可点击链接+发布日期
+
+———第二阶段｜PRD与信息架构———
+基于调研，输出《PRDv1》并包含：
+1) 用户画像与使用场景：考研22408错题整理与复习
+2) MVP范围(务必可在2–3周内实现落地)：拍题/相册导入→题/答分离→打标→复做记录→智能推送→统计→速记
+3) 关键流程图：新增错题(题/答分步上传)；复习流(仅题面→点按查看答案→对/错与备注)；速记卡生成与复习
+4) 字段与规则：
+   - 必填：科目、章节、题源(书/卷+页码/题号可选)、题/答案图片或文本
+   - 选填：知识点标签、难度(1–5)、备注
+   - 自动：创建时间、OCR文本、图片pHash、文本MinHash、是否含公式
+   - 统计：总复做次数、累计正确/错误、最近N次(默认5)正确率、streak、近30天曲线
+5) 智能推送策略(MVP版)：二元反馈(对/错)映射SM-2思想
+   - 对：适度拉长间隔并微调ease
+   - 错：短间隔重置并记录lapse
+   - 候选池：到期题+近N次高错题+久未复习(>14天)题
+   - 排序示例：score=到期权重1.0+错误率0.6+久未0.4+难度0.2(可配置)
+6) 隐私与选项：默认全离线；可选开启Mathpix/LLM并弹窗提示；导出CSV/JSON/Anki可导入格式
+7) UI规范摘要：iOSHIG风格、SFPro字体、浅色为主；首页模块(今日复习/待整理/统计)、题卡卡片流、详情上下分栏(题/答，答案默认折叠)
+
+———第三阶段｜数据模型与文件结构———
+请给出：
+1) 实体关系图(ERD)+CoreDataModel定义：
+   - Subject(id,name)
+   - Chapter(id,subjectId,name,order)
+   - Source(id,title,meta)
+   - Problem(id,subjectId,chapterId,sourceId,images[],titleText,answerText,latex[],tags[],difficulty,createdAt,updatedAt,hashes{imagePHash,textMinHash})
+   - ReviewLog(id,problemId,timestamp,result{correct|wrong},durationSec,note)
+   - DeckCard(可从Problem生成的速记卡，支持Basic/Cloze)
+2) JSONSchema与样例数据(10条)，覆盖：只有题无答案/只有答案无题/含公式/多图/重复近似
+3) 本地全文检索与去重思路：OCR文本索引、MinHash阈值、pHash近邻
+
+———第四阶段｜代码脚手架(能编译运行的最小工程)———
+请产出Swift代码与文件树(可直接创建工程粘贴使用)，要求SwiftUI+iOS17+：
+A) App结构与导航：
+   - Tab：今日/错题库/速记/统计/设置
+   - NavigationStack与依赖注入
+B) 数据层：
+   - CoreData堆栈封装；实体NSManagedObject子类；样例迁移策略
+   - Repository接口：ProblemRepository/ReviewLogRepository
+C) OCR与导入：
+   - 使用Vision/PhotosPicker/VisionKitDataScanner(若可)实现：拍照/相册选图→OCR→可编辑预览→入库
+   - 协议封装：OcrService，有Mock实现与单元测试
+D) SRS调度器(纯Swift模块+单测)：
+   - 字段：ease(初始2.5)、interval(初始1天)、lapses
+   - 规则(可配置)：对→interval*=1+0.15*ease, ease+=0.05(上限3.0)；错→interval=1天, ease-=0.2(下限1.3), lapses+1
+   - nextReviewAt计算，候选池合并与排序
+E) 复习与统计UI：
+   - 今日训练视图：仅显示题面；点“查看答案”后露出答案；“这次做对/做错”与备注
+   - 错题库：筛选(科目/章节/知识点/题源)、搜索；详情页展示历史ReviewLog
+   - 统计：最近N次正确率、近30天曲线(用Charts或SwiftUI绘制)
+F) 通知调度：
+   - UNUserNotificationCenter授权、分类动作；每科每日目标数与时间段设置；示例调度代码
+G) 去重/相似提示：
+   - pHash与MinHash参考实现(说明第三方库或自实现)，在导入时提示“疑似重复”
+H) 速记卡模块：
+   - 从Problem一键生成Basic/Cloze卡；与SRS共用调度；复习UI与日志记录
+I) 设置页与导入导出：
+   - 开关：是否启用Mathpix/LLM；导出CSV/JSON/Anki可导入格式；隐私说明视图
+J) CloudKit同步(二期开关，先给占位实现与文档)：
+   - 给出开启步骤、限制与冲突策略的指引文件
+
+所有关键方法写DocC风格注释与用法示例；附10条假数据与若干截图占位指令(标注在README如何生成)。
+
+———第五阶段｜测试与质量保障———
+1) 单元测试：SRS调度器边界(极端ease/interval/频繁出错)、OCR服务Mock、Repository增删改查
+2) UI测试：新增错题、复习一轮、统计刷新
+3) 性能与规模：1万题列表性能建议、分页与索引策略
+4) 离线/异常：无网导入、仅题无答/仅答无题占位保存、重复图片/文本的去重提示
+5) 无障碍与本地化：DynamicType、VoiceOver基础、本地化键位表
+
+———第六阶段｜交付与文档———
+1) README：项目概览、架构图、数据流图、运行步骤、配置项、隐私策略、Roadmap(v1/v1.1/v2)
+2) 发布清单(AppStoreConnect草案)：App名称/副标题/关键词/隐私说明、截图脚本与分辨率清单
+3) 风险与后续：何时引入LLM(轻智能)与Mathpix；成本、延迟、隐私对策
+
+———验收标准(请逐条对照勾选)———
+[ ] 提供完整《技术调研报告》并附权威引用链接与日期  
+[ ] 提供《PRDv1》《ERD》《JSONSchema+样例数据》  
+[ ] 提供可编译的SwiftUI最小工程代码(含SRS/通知/OCR导入/存储/复习/统计/速记)  
+[ ] 关键模块具备单元测试并能本地通过  
+[ ] README可按步骤跑起Demo并看到“今日复习→只见题→点按看答案→对/错记录→统计变化”  
+[ ] 代码具有注释、边界处理、隐私开关与导出能力  
+[ ] 交付物结构化清晰，不依赖额外口头说明即可复现
+
+输出格式要求：
+按“调研→PRD→数据模型→代码→测试→发布”的顺序生成；所有外链需可点击；所有代码块需标明文件路径；给出可直接复制到Xcode的文件树与内容。务必先完成调研并给引用后，再开始PRD与代码。
